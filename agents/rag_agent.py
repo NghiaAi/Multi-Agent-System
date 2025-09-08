@@ -38,7 +38,7 @@ def load_agent():
         vector_db=vector_db
     )
 
-    knowledge_base.load(recreate=False)
+    knowledge_base.load(recreate=True)
 
     instructions = [
         "Bạn là một trợ lý RAG chuyên phân tích nội dung từ tài liệu PDF.",
