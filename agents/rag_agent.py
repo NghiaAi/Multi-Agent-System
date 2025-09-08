@@ -13,15 +13,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def load_agent():
-    # os.environ["GOOGLE_API_KEY"] = "AIzaSyAPwAw1Worn5dNLC1eI4ruEIPBm2j9KjCo"
     os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
     
     embedder = GeminiEmbedder(model="models/embedding-001")
     text_splitter = SemanticChunker(embedder)
 
     collection_name = "rag_collection"
-    # qdrant_url = "https://cc46a623-205c-4d61-a100-0d79fbfd5b2c.us-east4-0.gcp.cloud.qdrant.io:6333"
-    # qdrant_api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.bONW5CvGoRl0Zwg6My9BC0N2eixNBMD0QlRleCPJTGQ"
     qdrant_url = os.getenv("QDRANT_URL")
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
 
