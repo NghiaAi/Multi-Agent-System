@@ -1,0 +1,14 @@
+pandas
+sqlalchemy
+sqlite-utils
+phidata
+google-generativeai
+groq
+regex
+streamlit
+pyyaml
+groq
+pypdf
+langchain_experimental
+qdrant_client
+python-dotenv
