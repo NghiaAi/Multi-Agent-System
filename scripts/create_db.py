@@ -30,6 +30,7 @@ prices = Table(
     Column('High', Float),
     Column('Low', Float),
     Column('Close', Float),
+    Column('Adj Close', Float),
     Column('Volume', Integer),
     Column('Dividends', Float),
     Column('Stock Splits', Float),
@@ -38,7 +39,7 @@ prices = Table(
 data_dir = BASE_DIR / "data"
 # Đọc file CSV
 companies_df = pd.read_csv(data_dir/"djia_companies_20250426.csv")
-prices_df = pd.read_csv(data_dir/"djia_prices_20250426.csv")
+prices_df = pd.read_csv(data_dir/"djia_prices_20251120.csv")
 
 # Chuyển đổi cột Date sang định dạng DATETIME
 prices_df['Date'] = pd.to_datetime(prices_df['Date'], utc=True)

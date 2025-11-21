@@ -1,2 +1,5 @@
 .env
 scripts/README.md
+venv/
+__pycache__/
+agents/prep.ipynb

@@ -12,7 +12,7 @@ def get_agent():
 
 def main():
     st.set_page_config(page_title="RAG PDF Assistant", layout="centered")
-    st.title("RAG PDF Assistant (Gemini + Qdrant)")
+    st.title("RAG PDF Assistant (Groq + Qdrant)")
 
     agent, knowledge_base = get_agent()
 

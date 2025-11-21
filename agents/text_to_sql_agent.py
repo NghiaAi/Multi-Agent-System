@@ -1,17 +1,16 @@
 import os
 import re
+import json
 from phi.agent import Agent
 from phi.model.groq import Groq
 from phi.tools.sql import SQLTools
 from sqlalchemy import create_engine
 from pathlib import Path
+from dotenv import load_dotenv
+from typing import Optional, List, Dict, Any
 
+load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Hàm REGEXP tùy chỉnh
-def regexp(expr, item):
-    reg = re.compile(expr, re.IGNORECASE)
-    return reg.search(item) is not None
 
 os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
@@ -19,10 +18,16 @@ db_path = BASE_DIR / "data/djia.db"
 db_url = f"sqlite:///{db_path}"
 
 engine = create_engine(db_url)
-conn = engine.connect()
-conn.connection.create_function("REGEXP", 2, regexp)
 
-sql_tools = SQLTools(db_url=db_url)
+class UnlimitedSQLTools(SQLTools):
+    def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
+        try:
+            result = self.run_sql(sql=query, limit=limit)
+            return json.dumps(result, default=str)
+        except Exception as e:
+            return f"Error running query: {e}"
+
+sql_tools = UnlimitedSQLTools(db_url=db_url)
 
 company_to_symbol = {
     "Apple Inc.": "AAPL",
@@ -57,15 +62,40 @@ company_to_symbol = {
     "Walmart Inc.": "WMT"
 }
 
+sql_tool_schema = {
+    "type": "function",
+    "function": {
+        "name": "run_sql_query",
+        "description": "Execute a SQL query on the DJIA database and return the result as a JSON string.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The SQL query to execute."},
+                "limit": {"type": "integer", "description": "Optional limit for the number of rows to return.", "default": None}
+            },
+            "required": ["query"]
+        }
+    }
+}
+
 agent = Agent(
-    model=Groq(id="llama-3.3-70b-versatile"),
+    model=Groq(
+        id="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY"),
+        timeout=30,
+        max_retries=5,
+        temperature=0.2,
+        max_tokens=4000,
+        top_p=0.8,
+    ),
+    # tools=[sql_tools, sql_tool_schema],
     tools=[sql_tools],
-    description="You are a financial data analyst agent that queries a SQL database containing DJIA companies and historical stock prices to answer questions about stock prices and trading volumes.",
+    description="You are a financial data analyst agent that queries a SQL database containing DJIA companies and historical stock prices to answer questions about stock prices, returns, and trading volumes.",
     instructions=[
         "You are a helpful research assistant with access to a SQL database containing two tables: 'companies' and 'prices'. Below are their schemas, a company-to-symbol mapping, and dataset description.",
         "### Dataset Description",
         "- The database contains data on companies in the Dow Jones Industrial Average (DJIA) and their historical stock prices.",
-        "- The database path is './db/djia.db'.",
+        "- The database path is './data/djia.db'.",
         "- The 'companies' table stores company information, and the 'prices' table stores daily stock price data.",
         "- The 'symbol' column in 'companies' links to the 'Ticker' column in 'prices'.",
         "### Schema",
@@ -76,48 +106,49 @@ agent = Agent(
         "- industry: TEXT (e.g., 'Consumer Electronics', detailed industry)",
         "- country: TEXT (e.g., 'United States', company country)",
         "- website: TEXT (e.g., 'www.apple.com', company website)",
-        "- market_cap: FLOAT (market capitalization in USD)",
-        "- pe_ratio: FLOAT (price-to-earnings ratio)",
-        "- dividend_yield: FLOAT (dividend yield percentage)",
-        "- 52_week_high: FLOAT (highest stock price in the last 52 weeks)",
-        "- 52_week_low: FLOAT (lowest stock price in the last 52 weeks)",
+        "- market_cap: REAL (e.g., 3143825096704, market capitalization)",
+        "- pe_ratio: REAL (e.g., 33.219048, price-to-earnings ratio)",
+        "- dividend_yield: REAL (e.g., 48.0, dividend yield)",
+        "- 52_week_high: REAL (e.g., 260.1, 52-week high price)",
+        "- 52_week_low: REAL (e.g., 169.11, 52-week low price)",
         "- description: TEXT (company description)",
         "**Table: prices**",
-        "- Date: DATETIME (e.g., '2025-02-28 00:00:00-04:00', trading date with time and timezone)",
-        "- Open: FLOAT (opening price of the stock)",
-        "- High: FLOAT (highest price of the stock during the day)",
-        "- Low: FLOAT (lowest price of the stock during the day)",
-        "- Close: FLOAT (closing price of the stock)",
-        "- Volume: INTEGER (number of shares traded)",
-        "- Dividends: FLOAT (dividends paid, if any)",
-        "- Stock Splits: FLOAT (stock split ratio, if any)",
-        "- Ticker: TEXT (e.g., 'AAPL', links to 'symbol' in 'companies')",
+        "- Date: DATETIME (e.g., '2023-04-26 00:00:00-04:00', date of the price data)",
+        "- Open: REAL (e.g., 161.43199188421733, opening price)",
+        "- High: REAL (e.g., 163.6298284131595, high price)",
+        "- Low: REAL (e.g., 161.1745931859106, low price)",
+        "- Close: REAL (e.g., 162.125, closing price)",
+        "- Adj Close: REAL (e.g., 162.125, adjusted closing price)",
+        "- Volume: INTEGER (e.g., 45498800, trading volume)",
+        "- Dividends: REAL (e.g., 0.0, dividends paid)",
+        "- Stock Splits: REAL (e.g., 0.0, stock splits)",
+        "- Ticker: TEXT (e.g., 'AAPL', foreign key to companies.symbol)",
         "### Company-to-Symbol Mapping",
-        str(company_to_symbol),
-        "### Instructions",
-        "- Use SQLTools to query the database. Always build safe and accurate SQL queries.",
-        "- If the question mentions a company name (e.g., 'Apple' or '3M'), use the provided company-to-symbol mapping to find the corresponding symbol (e.g., 'Apple Inc.' → 'AAPL').",
-        "- To match company names flexibly, remove common suffixes like 'Company', 'Inc.', 'Inc', 'Corporation', or '(The)' from the company name in the mapping and perform a case-insensitive substring match with the user's input. For example, if the user inputs 'Apple', match it to 'Apple Inc.' in the mapping to get 'AAPL'.",
-        "- If multiple company names match (e.g., 'Disney' matching multiple entries), return 'I don't know' and ask for clarification.",
-        "- If no match is found in the mapping, return 'I don't know'.",
-        "- Use the found symbol as Ticker to query the 'prices' table directly. Do NOT query the 'companies' table unless explicitly needed.",
+        f"Use this mapping to convert company names to tickers for querying the 'prices' table, or to map tickers back to company names in results: {json.dumps(company_to_symbol, ensure_ascii=False, indent=2)}",
+        "### Instructions for Queries",
+        "- Always use the company-to-symbol mapping to convert company names to tickers (e.g., 'UnitedHealth Group' → 'UNH') for querying the 'prices' table. Match flexibly by removing suffixes like 'Inc.', 'Company', '(The)', and use case-insensitive substring matching. If ambiguous or no match, note it and return 'I don't know'.",
+        "- For queries involving all DJIA companies (e.g., total dividends per company), query the 'prices' table, group by Ticker, and calculate aggregates (e.g., SUM(Dividends)). In the Raw Result, map each Ticker to its company name using the company-to-symbol mapping, and include ALL companies (30) even if SUM=0 or no data (set Total_Dividends=0 for those).",
+        "- Only query the 'companies' table if static info (e.g., market_cap, sector) is explicitly needed.",
+        "- For visualization queries requiring time series (e.g., cumulative returns), select individual values (e.g., Date, Close, Ticker) from the 'prices' table, ordered by Date.",
+        "- For cumulative returns queries (e.g., 'cumulative returns of UNH in 2024'), query daily closing prices for the specified ticker and year: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date.",
+        "- For dividend queries specifying a date (e.g., 'dividend per share of MSFT on May 17, 2023'), query the 'Dividends' column from the 'prices' table using the DATE() function to match the date: SELECT Dividends FROM prices WHERE Ticker = '[TICKER]' AND DATE(Date) = '[YYYY-MM-DD]'.",
+        "- For historical price queries (e.g., 'last 90 trading days of AAPL'), always select Date, Open, High, Low, Close, Adj Close, Volume, Ticker. ",
         "- To call the 'run_sql_query' tool, ALWAYS respond with a JSON array of tool calls in this exact format: [{'id': 'call_id', 'type': 'function', 'function': {'name': 'run_sql_query', 'arguments': '{\"query\": \"YOUR SQL QUERY HERE\"}'}}]. Replace 'call_id' with a unique ID like 'call_123'.",
-        "- When calling run_sql_query, pass the SQL query as a JSON object with 'query' key, e.g., {'query': 'SELECT High FROM prices WHERE Ticker = \"AAPL\" AND DATE(Date) = \"2025-02-28\"'}.",
-        "- After receiving the result from run_sql_query, process it to extract the relevant value (e.g., Close, Open, High, Low, Volume).",
-        "- If the query result is empty (e.g., []), return 'I don't know. No data available for [company] on [date].'",
-        "- If the query result is valid, format the answer clearly, e.g., 'The closing price of Microsoft on 2024-03-15 was $X.XX.' for price queries or 'The trading volume of Apple on 2024-01-02 was X.' for volume queries.",
-        "- For price values, format to 2 decimal places (e.g., $123.45). For volume, use whole numbers.",
-        "- Examples of queries and responses:",
-        "  - Highest price of Apple on 2025-02-28: Use mapping ('Apple Inc.' → 'AAPL'), then run_sql_query with {'query': 'SELECT High FROM prices WHERE Ticker = \"AAPL\" AND DATE(Date) = \"2025-02-28\"'}",
-        "  - Closing price of 3M on 2023-12-15: Use mapping ('3M Company' → 'MMM'), then run_sql_query with {'query': 'SELECT Close FROM prices WHERE Ticker = \"MMM\" AND DATE(Date) = \"2023-12-15\"'}",
-        "  - Trading volume of Walmart between 2025-01-01 and 2025-02-01: Use mapping ('Walmart Inc.' → 'WMT'), then run_sql_query with {'query': 'SELECT SUM(Volume) FROM prices WHERE Ticker = \"WMT\" AND DATE(Date) BETWEEN \"2025-01-01\" AND \"2025-02-01\"'}",
-        "- If no date is specified, assume the latest available date or summarize over time.",
-        "- If the question is about a company not in the mapping or data not available, say 'I don't know.' Don't make up answers.",
-        "- Present answers clearly, e.g., 'The highest price of AAPL on 2025-02-28 was [value].' or 'The closing price of MSFT on 2024-03-15 was [value].'",
-        "- After receiving the tool result, ALWAYS provide a final response in this format:\nSQL Query: [the SQL query you used]\nRaw Result: [the raw result from the query]\nAnswer: [your formatted answer based on the result].",
-        "- If the tool call fails or returns no data, return 'I don't know. No data available for [company] on [date].'",
+        "- When calling run_sql_query, pass the SQL query as a JSON object with 'query' key.",
+        "- After receiving the result from run_sql_query, process it to extract the relevant value.",
+        "- If the query result is empty, return 'I don't know. No data available for [company or data type].'.",
+        "- For price values, format to 2 decimal places (e.g., $123.45). For returns, format as percentage to 2 decimal places (e.g., 5.23%).",
+        "- Do not add LIMIT to queries unless explicitly needed (e.g., top N). For time series or cumulative returns, return all rows for the specified period.",
+        "- Example: For 'Cumulative returns of UnitedHealth Group (UNH) in 2024':",
+        "  SQL: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date",
+        "  Raw Result: [{'Date': '2024-01-01 00:00:00-05:00', 'Close': 526.47, 'Ticker': 'UNH'}, ...]",
+        "- If no date is specified, assume the latest available data or summarize as needed.",
+        "- If the question is about a company not in the mapping or data not available, say 'I don't know.'",
+        "- Present answers clearly, e.g., 'The cumulative return of UNH from 2024-01-01 to 2024-12-31 was X.XX%.'",
+        "- After receiving the tool result, ALWAYS provide a final response in this format:\nSQL Query: [the SQL query you used]\nRaw Result: [the raw result with company names mapped]\nAnswer: [your formatted answer based on the result].",
+        "- If the tool call fails or returns no data, return 'I don't know. No data available for [company or data type].'.",
     ],
     debug_mode=True,
-    max_tool_calls=5,  
+    max_tool_calls=5,
     tool_call_strategy="auto",
 )

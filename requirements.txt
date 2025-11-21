@@ -7,8 +7,13 @@ groq
 regex
 streamlit
 pyyaml
-groq
 pypdf
 langchain_experimental
 qdrant_client
 python-dotenv
+matplotlib
+seaborn
+sentence-transformers
+scikit-learn
+joblib
+xgboost==3.1.0
