@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import textwrap
 from phi.agent import Agent
 from phi.model.groq import Groq
 from pathlib import Path
@@ -52,58 +53,80 @@ company_to_symbol = {
 }
 
 def create_visualize_agent():
-    tools_config_json = json.dumps(company_to_symbol, ensure_ascii=False, indent=2)
     system_prompt = f"""
-You are a visualization agent for stock data, creating charts as specified in user queries (e.g., time series of cumulative returns). Strictly use the chart type requested (e.g., 'line' for time series) unless infeasible.
+    You are a professional stock data visualization agent using Python (pandas, matplotlib, seaborn).
 
-Available chart types: bar, pie, line, scatter, heatmap, boxplot, histogram.
+    Your job: Generate ONLY executable Python code to create the exact chart requested by the user.
+    Never explain, never add extra text — output only ```python ... ```
 
-Process:
-1. Analyze the query to identify the chart type and required columns:
-   - Time series of cumulative returns: Needs 'Date', 'Close', 'Ticker'.
-     - Example query: "Plot the cumulative return of UnitedHealth Group (UNH) during 2024"
-     - Required columns: 'Date', 'Close', 'Ticker'
-     - Compute cumulative returns as (Close[t] / Close[0] - 1) * 100
-   - Boxplot of monthly closing prices: Needs 'Date' or 'Month', 'Close', 'Ticker'.
-   - Histogram of daily returns: Needs 'Date', 'Close', 'Ticker'; compute returns as (Close[t] - Close[t-1])/Close[t-1].
-   - Scatter plot of market cap vs P/E: Needs 'name', 'market_cap', 'pe_ratio'.
-   - Heatmap of correlation matrix: Needs 'Date', 'Close', 'Ticker' for multiple tickers.
-   - Scatter plot of avg volume vs avg close: Needs 'Volume', 'Close', 'Ticker'.
-   - Pie chart of sector distribution: Needs 'sector', 'num_companies'.
+    CRITICAL RULES (follow exactly):
+    1. Always start with:
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import numpy as np
 
-2. Use the company-to-symbol mapping: {tools_config_json}. Match company names flexibly (remove 'Inc.', 'Company', '(The)', case-insensitive).
+    2. Load data:
+    df = pd.DataFrame(sql_data)
 
-3. Always use provided "sql_data" (list of dicts from previous SQL query): df = pd.DataFrame(sql_data). Do NOT query the database. If sql_data is empty or lacks required columns, print 'No visualization possible.'
+    3. If sql_data is empty or missing required columns → print("No visualization possible.") and stop.
 
-4. Prepare data for the specific plot:
-   - Time series of cumulative returns: Ensure 'Date' is datetime (df['Date'] = pd.to_datetime(df['Date'])); filter by Ticker and year; compute cumulative returns (df['cumulative_returns'] = (df['Close'] / df['Close'].iloc[0] - 1) * 100); plot with sns.lineplot.
-   - Boxplot: If 'Date' present, convert to datetime and derive 'month' (df['month'] = df['Date'].dt.strftime('%Y-%m')). If 'Month' present, use as-is.
-   - Histogram: Compute returns (df['returns'] = df['Close'].pct_change().dropna()).
-   - Scatter: Drop NaN values (df = df.dropna()).
-   - Heatmap: Pivot (df_wide = df.pivot(index='Date', columns='Ticker', values='Close')); compute returns; calculate corr.
-   - Scatter (avg volume vs close): Group by Ticker (df = df.groupby('Ticker').agg({{'Volume': 'mean', 'Close': 'mean'}})).
-   - Pie: Use 'sector' and 'num_companies' directly.
+    4. Detect chart type from user query and apply correct logic:
 
-5. Generate Python code to plot. Import pd, plt, sns, np, Image. Do NOT import create_engine or query SQL. Always use sql_data.
-   - Start with: df = pd.DataFrame(sql_data)
-   - Check required columns. If missing, print 'No visualization possible.' and return None.
-   - Plot using the specified chart type:
-     - Line: sns.lineplot(data=df, x='Date', y='cumulative_returns'); plt.title('Cumulative Returns of [Company] in [Year]')
-     - Boxplot: sns.boxplot(data=df, x='month', y='Close'); plt.xticks(rotation=45)
-     - Scatter: sns.scatterplot(x=df['market_cap'], y=df['pe_ratio'], hue=df['name'])
-     - Histogram: sns.histplot(data=df['returns'], bins=20)
-     - Heatmap: sns.heatmap(corr, annot=True, cmap='coolwarm')
-     - Pie: plt.pie(df['num_companies'], labels=df['sector'], autopct='%1.1f%%')
-   - Convert plot to NumPy array: fig = plt.gcf(); fig.canvas.draw(); img = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8); img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))[:, :, :3]; plt.close(); return img
+    ──────────────────────────────────────────────
+    CHART TYPE DETECTION & REQUIRED COLUMNS
+    ──────────────────────────────────────────────
+    • "heatmap" + "correlation" + ("return" or "daily") → Correlation matrix of daily returns
+        → Required: 'Date' (or date-like), 'Close', 'Ticker'
+        → Must pivot → returns → corr() → sns.heatmap(annot=True, cmap='coolwarm', vmin=-1, vmax=1)
 
-6. Output ONLY Python code in ```python\nCODE\n```. No other text.
+    • "cumulative return" or "cumulative performance" → Line chart of cumulative returns
+        → Required: 'Date', 'Close', 'Ticker'
+        → Compute: (Close / Close.first() - 1) * 100
 
-7. If sql_data is empty or lacks required columns, print 'No visualization possible.'
+    • - "boxplot" + ("monthly" or "month"):
+        → df['Month'] = df[date_col].dt.strftime('%Y-%m')
+        → month_order = sorted(df['Month'].unique())
+        → sns.boxplot(x='Month', y='Close', data=df, order=month_order)
+        → plt.xticks(rotation=45, ha='right')
+        → Title: e.g. "Monthly Closing Price Boxplot (DIS - 2024)"
 
-Database schemas:
-- companies: symbol, name, sector, industry, country, website, market_cap, pe_ratio, dividend_yield, 52_week_high, 52_week_low, description
-- prices: Date, Open, High, Low, Close, Volume, Dividends, Stock Splits, Ticker
-"""
+    • "histogram" or "distribution" + "return" → Histogram of daily returns
+        → pct_change() → sns.histplot()
+
+    • "scatter" + "volume" + "close" → Scatter avg volume vs avg close per stock
+
+    • "pie" + "sector" → Pie chart of sector distribution
+
+    • "line" + "price" or "close" → Simple price time series
+
+    5. Always handle date properly:
+    date_col = next((c for c in df.columns if 'date' in c.lower()), None)
+    if date_col: df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+
+    6. For multi-stock charts (like correlation heatmap):
+    - Use pivot: prices = df.pivot(index=date_col, columns='Ticker', values='Close')
+    - Drop NaNs carefully: .pct_change().dropna()
+    - If final returns DataFrame has < 2 columns → print("Not enough overlapping data")
+
+    7. Always end with converting figure to numpy image:
+    fig = plt.gcf()
+    fig.canvas.draw()
+    img = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+    img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))[:, :, :3]
+    plt.close(fig)
+
+    8. Use nice styling:
+    plt.figure(figsize=(12, 8))
+    sns.set_style("whitegrid")
+    plt.title(...) with clear title
+    plt.tight_layout()
+
+    9. Company name → Ticker mapping (use only if needed):
+    {json.dumps(company_to_symbol, indent=2)}
+
+    10. If you're unsure about columns → print(df.head()) and df.columns for debugging, but final output must still be valid plot or error message.
+    """
     return Agent(
         model=Groq(
             id="llama-3.3-70b-versatile",
@@ -111,7 +134,7 @@ Database schemas:
             timeout=60,
             max_retries=5,
             temperature=0.2,
-            max_tokens=3000,
+            max_tokens=4000,
             top_p=0.8,
         ),
         system_prompt=system_prompt,
@@ -119,30 +142,81 @@ Database schemas:
     )
 
 def run_visualize_agent(query: str, sql_data: list = None, chat_history: list = []) -> Dict[str, Any]:
-    try:
-        query_dict = json.loads(query) if isinstance(query, str) and query.startswith('{') else {"query": query}
-        actual_query = query_dict.get("query", query)
-    except json.JSONDecodeError:
-        actual_query = query
+    if sql_data is None:
+        sql_data = []
 
-    input_data = json.dumps({"query": actual_query, "sql_data": sql_data, "chat_history": chat_history}, ensure_ascii=False)
-
-    agent = create_visualize_agent()
     try:
+        # Parse query
+        try:
+            query_dict = json.loads(query) if isinstance(query, str) and query.startswith('{') else {"query": query}
+            actual_query = query_dict.get("query", query)
+        except:
+            actual_query = query
+
+        input_data = json.dumps({
+            "query": actual_query,
+            "sql_data": sql_data,
+            "chat_history": chat_history
+        }, ensure_ascii=False)
+
+        agent = create_visualize_agent()
         response = agent.run(input_data)
-        code_match = re.search(r'```python\n(.*?)\n```', response.content, re.DOTALL)
+
+        code_match = re.search(r'```python\s*(.*?)\s*```', response.content, re.DOTALL)
         if not code_match:
-            return {"status": "error", "message": "No code generated", "visualization": None}
-        
-        code = code_match.group(1)
-        
-        local_globals = {'pd': pd, 'plt': plt, 'sns': sns, 'np': np, 'Image': Image, 'Path': Path, '__file__': __file__, 'BASE_DIR': BASE_DIR}
-        local_locals = {'sql_data': sql_data}
-        exec(code, local_globals, local_locals)
-        
-        if 'img' in local_locals and isinstance(local_locals['img'], np.ndarray):
-            return {"status": "success", "message": "Visualization generated", "visualization": local_locals['img']}
+            return {"status": "error", "message": "No python code block found", "visualization": None}
+
+        raw_code = code_match.group(1).strip()
+
+        # === FIX TRIỆT ĐỂ: Dùng textwrap.dedent + đảm bảo indent đúng ===
+        user_code_block = textwrap.dedent("""
+        try:
+            # USER CODE START - DO NOT REMOVE THIS LINE
+        {user_code}
+            # USER CODE END
+        except Exception as e:
+            print("Code execution error:", e)
+        """).format(user_code=textwrap.indent(raw_code, "    "))
+
+        full_code = f"""
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+sql_data = {repr(sql_data)}
+img = None
+
+{user_code_block}
+
+# === ĐẢM BẢO TẠO ẢNH ===
+if img is None and plt.get_fignums():
+    try:
+        fig = plt.gcf()
+        fig.canvas.draw()
+        buffer = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+        h, w = fig.canvas.get_width_height()
+        img = buffer.reshape((h, w, 4))[:, :, :3]
+    except:
+        img = None
+
+plt.close('all')
+"""
+
+        # === EXECUTE ===
+        namespace = {
+            'pd': pd, 'plt': plt, 'sns': sns, 'np': np,
+            'Image': Image, 'Path': Path, '__file__': __file__, 'BASE_DIR': BASE_DIR
+        }
+
+        exec(full_code, namespace)
+
+        img = namespace.get('img')
+
+        if isinstance(img, np.ndarray) and img.size > 0:
+            return {"status": "success", "message": "Visualization generated", "visualization": img}
         else:
-            return {"status": "success", "message": "No visualization possible.", "visualization": None}
+            return {"status": "error", "message": "No image generated (plot failed or empty)", "visualization": None}
+
     except Exception as e:
-        return {"status": "error", "message": f"Error: {str(e)}", "visualization": None}
+        return {"status": "error", "message": f"Agent runtime error: {str(e)}", "visualization": None}
