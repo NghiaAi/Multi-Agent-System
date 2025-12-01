@@ -67,9 +67,15 @@ def create_visualize_agent():
     import numpy as np
 
     2. Load data:
+    # sql_data is already a Python list of dicts passed externally.
+    # NEVER rewrite sql_data manually.
     df = pd.DataFrame(sql_data)
 
-    3. If sql_data is empty or missing required columns → print("No visualization possible.") and stop.
+    3. To check empty data, you MUST use:
+       df = pd.DataFrame(sql_data)
+       if df.empty:
+           print("No visualization possible.")
+           raise SystemExit
 
     4. Detect chart type from user query and apply correct logic:
 

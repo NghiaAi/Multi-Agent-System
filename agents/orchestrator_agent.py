@@ -134,7 +134,6 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
        LIMIT 90;
      - Even if user asks "for the next 5 days", still fetch the last 60–90 days of historical data for model features.
      - Then trading_agent will make the decision (BUY, HOLD, SELL) and provide explanation.
-
 5. Create Sub-Queries:
    - For text2sql_agent, create sub-query to fetch required data.
      Tailor it to the visualization if applicable (e.g., for time series plot, "What are the closing prices of [ticker] during [period]?").
@@ -254,7 +253,8 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 
             elif agent_name == "visualization_agent":
                 logger.debug(f"Executing visualization_agent with sub-query: {sub_query}")
-                logger.debug(f"Passing sql_data to visualization_agent: {previous_result_data}")
+                # logger.debug(f"Passing sql_data to visualization_agent: {previous_result_data}")
+                logger.debug(f"Passing sql_data to visualization_agent: {len(previous_result_data)} rows")
                 viz_result = run_visualize_agent(sub_query, sql_data=previous_result_data)
                 response_dict["data"]["visualization"] = viz_result.get("visualization")
                 response_dict["data"]["result"] = viz_result.get("message", "No visualization created.")

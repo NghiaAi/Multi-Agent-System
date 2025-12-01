@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import tiktoken 
 from phi.agent import Agent
 from phi.model.groq import Groq
 from phi.tools.sql import SQLTools
@@ -19,15 +20,94 @@ db_url = f"sqlite:///{db_path}"
 
 engine = create_engine(db_url)
 
+# MAX_CONTEXT_TOKENS = 14000         # tổng context mà bạn dùng để tính toán
+# BASE_PROMPT_TOKENS = 2367          # system + instructions + tool spec + v.v.
+# TOKENS_PER_ROW = 48                # token trung bình cho 1 dòng kết quả
+
+# encoding = tiktoken.get_encoding("cl100k_base")
+
+# def count_tokens(text: str) -> int:
+#     if not text:
+#         return 0
+#     return len(encoding.encode(text))
+
+# class UnlimitedSQLTools(SQLTools):
+#     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
+#         try:
+#             if limit is None:
+#                 query_tokens = count_tokens(query)
+#                 available_for_result = MAX_CONTEXT_TOKENS - BASE_PROMPT_TOKENS - query_tokens
+#                 if available_for_result <= 0:
+#                     max_rows = 1
+#                 else:
+#                     est_rows = available_for_result // TOKENS_PER_ROW
+#                     max_rows = max(1, est_rows)
+#             else:
+#                 max_rows = limit
+
+#             result = self.run_sql(sql=query, limit=max_rows)
+#             return json.dumps(result, default=str)
+#         except Exception as e:
+#             return json.dumps({"error": f"Error running query: {e}"})
+# sql_tools = UnlimitedSQLTools(db_url=db_url)
+
+MAX_CONTEXT_TOKENS = 14000         # tổng context mà bạn dùng để tính toán
+BASE_PROMPT_TOKENS = 2367          # system + instructions + tool spec + v.v.
+TOKENS_PER_ROW = 48                # token trung bình cho 1 dòng kết quả
+
+encoding = tiktoken.get_encoding("cl100k_base")
+
+def count_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return len(encoding.encode(text))
+
 class UnlimitedSQLTools(SQLTools):
     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
         try:
-            result = self.run_sql(sql=query, limit=limit)
+            # Tính max_rows theo token nếu agent không truyền limit
+            if limit is None:
+                query_tokens = count_tokens(query)
+                available_for_result = MAX_CONTEXT_TOKENS - BASE_PROMPT_TOKENS - query_tokens
+                if available_for_result <= 0:
+                    max_rows = 1
+                else:
+                    est_rows = available_for_result // TOKENS_PER_ROW
+                    max_rows = max(1, est_rows)
+            else:
+                max_rows = limit
+
+            # 1) Lấy FULL kết quả từ SQL (không giới hạn ở DB)
+            full_result = self.run_sql(sql=query, limit=None)
+
+            # 2) Nếu không phải list hoặc số dòng nhỏ hơn max_rows thì trả về luôn
+            if not isinstance(full_result, list) or len(full_result) <= max_rows:
+                result = full_result
+            else:
+                # 3) Nếu là list[dict] và có cột Date thì sort theo Date rồi lấy các dòng mới nhất
+                if full_result and isinstance(full_result[0], dict) and "Date" in full_result[0]:
+                    sorted_result = sorted(full_result, key=lambda r: r.get("Date") or "")
+                    result = sorted_result[-max_rows:]
+                else:
+                    # Không có Date: đơn giản lấy các phần tử cuối cùng
+                    result = full_result[-max_rows:]
+
             return json.dumps(result, default=str)
         except Exception as e:
-            return f"Error running query: {e}"
-
+            return json.dumps({"error": f"Error running query: {e}"})
 sql_tools = UnlimitedSQLTools(db_url=db_url)
+
+
+
+# class UnlimitedSQLTools(SQLTools):
+#     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
+#         try:
+#             result = self.run_sql(sql=query, limit=limit)
+#             return json.dumps(result, default=str)
+#         except Exception as e:
+#             return f"Error running query: {e}"
+
+# sql_tools = UnlimitedSQLTools(db_url=db_url)
 
 company_to_symbol = {
     "Apple Inc.": "AAPL",
@@ -140,7 +220,7 @@ agent = Agent(
         "- After receiving the result from run_sql_query, process it to extract the relevant value.",
         "- If the query result is empty, return 'I don't know. No data available for [company or data type].'.",
         "- For price values, format to 2 decimal places (e.g., $123.45). For returns, format as percentage to 2 decimal places (e.g., 5.23%).",
-        "- Do not add LIMIT to queries unless explicitly needed (e.g., top N). For time series or cumulative returns, return all rows for the specified period.",
+        
         "- Example: For 'Cumulative returns of UnitedHealth Group (UNH) in 2024':",
         "  SQL: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date",
         "  Raw Result: [{'Date': '2024-01-01 00:00:00-05:00', 'Close': 526.47, 'Ticker': 'UNH'}, ...]",

@@ -15,12 +15,18 @@ from agents.orchestrator_agent import run_orchestrator
 
 st.title("Agent Query System")
 
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [] 
+
 query = st.text_input("Nhập câu hỏi của bạn:", placeholder="Ví dụ: Plot the time series of Microsoft (MSFT) stock closing price from June 1, 2024 to September 30, 2024. Hoặc: What is the main contribution of the paper?")
 
 if st.button("Gửi câu hỏi"):
     if query:
+        chat_history = st.session_state.chat_history[-2:]
         with st.spinner("Đang xử lý câu hỏi..."):
-            response = run_orchestrator(query, chat_history=[])
+            response = run_orchestrator(query, chat_history=chat_history)
+        
+        st.session_state.chat_history.append(f"User: {query}")
         
         st.subheader("Kết quả:")
         
