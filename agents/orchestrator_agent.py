@@ -61,40 +61,6 @@ TOOLS_CONFIG = {
 
 def create_orchestrator():
     tools_config_json = json.dumps(TOOLS_CONFIG, ensure_ascii=False, indent=2)
-#     system_prompt = f"""
-# You are Orchestrator, analyzing queries and delegating tasks to text2sql_agent, visualization_agent, or rag_agent. Return ONLY JSON output with agents, sub-queries, tickers, and date range. Do NOT include text, explanations, markdown, or code outside JSON.
-
-# Input format: JSON string with "query" (current query) and "chat_history" (list of previous interactions).
-# - Example input: {{"query": "Plot the cumulative return of UnitedHealth Group (UNH) during 2024", "chat_history": []}}
-
-# 1. Analyze Chat History for Context:
-#    - Use chat_history (last 5 interactions) to understand context.
-#    - Example: If chat_history contains "Tell me about Microsoft stock" and current query is "Plot its prices", infer "its" refers to Microsoft (MSFT).
-
-# 2. Analyze Current Query:
-#    - Match intents:
-#      {tools_config_json}
-#    - Use text2sql_agent for stock/data queries (e.g., 'stock', 'price', 'volume', 'returns', 'cumulative returns').
-#    - Add visualization_agent after text2sql_agent if query contains visualization intents (e.g., 'chart', 'plot', 'line').
-#    - Use rag_agent for queries about PDF documents or research papers (e.g., 'pdf', 'document', 'contribution', 'summary').
-#    - Use trading_agent when user asks for "buy", "sell", "hold", "invest", or "recommendation".
-#    - Output agents in order (e.g., ["text2sql_agent", "visualization_agent"] or ["rag_agent"]).
-
-# 3. Extract Tickers and Date Range:
-#    - Identify tickers from company names using mapping or directly if ticker is mentioned (e.g., 'UNH' for UnitedHealth Group).
-#    - Extract date range (e.g., 'during 2024' → {{"start_date": "2024-01-01", "end_date": "2024-12-31"}}).
-#    - If no date range, set date_range to null.
-#    - For rag_agent, tickers and date_range are typically null unless the query involves stock-related PDF content.
-
-# 4. Create Sub-Queries:
-#    - For text2sql_agent, create sub-query to fetch required data. Tailor it to the visualization if applicable (e.g., for time series plot, "What are the closing prices of [ticker] during [period]?"; for distribution pie chart, "What is the number of DJIA companies in each sector?").
-#    - For visualization_agent, use the original query as sub-query to describe the visualization.
-#    - For rag_agent, use the original query as the sub-query for document analysis.
-
-# 5. Output JSON Structure:
-#    - {{"status": "success|error", "message": "Query analyzed successfully|Error message", "data": {{"agents": ["agent1", "agent2"], "sub_queries": {{"agent1": "sub_query1", "agent2": "sub_query2"}}, "tickers": ["UNH"], "date_range": null|{{start_date, end_date}}, "sql_result": [], "result": "", "rag_result": ""}}}}
-# """
-
     system_prompt = f"""
 You are Orchestrator, analyzing queries and delegating tasks to text2sql_agent, visualization_agent, trading_agent, or rag_agent.
 Return ONLY JSON output with agents, sub-queries, tickers, and date range. 
@@ -104,7 +70,7 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
 - Example input: {{"query": "Plot the cumulative return of UnitedHealth Group (UNH) during 2024", "chat_history": []}}
 
 1. Analyze Chat History for Context:
-   - Use chat_history (last 5 interactions) to understand context.
+   - Use chat_history (last 2 interactions) to understand context.
    - Example: If chat_history contains "Tell me about Microsoft stock" and current query is "Plot its prices", infer "its" refers to Microsoft (MSFT).
 
 2. Analyze Current Query:
@@ -158,7 +124,6 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
      }}
 """
 
-
     return Agent(
         model=Groq(
             id="llama-3.3-70b-versatile",
@@ -172,7 +137,8 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
         system_prompt=system_prompt,
         debug_mode=True,
     )
-
+    
+rag_agent, _ = load_rag_agent()
 def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
     orchestrator = create_orchestrator()
     input_json = json.dumps({"query": query, "chat_history": chat_history}, ensure_ascii=False)
@@ -253,14 +219,13 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 
             elif agent_name == "visualization_agent":
                 logger.debug(f"Executing visualization_agent with sub-query: {sub_query}")
-                # logger.debug(f"Passing sql_data to visualization_agent: {previous_result_data}")
                 logger.debug(f"Passing sql_data to visualization_agent: {len(previous_result_data)} rows")
                 viz_result = run_visualize_agent(sub_query, sql_data=previous_result_data)
                 response_dict["data"]["visualization"] = viz_result.get("visualization")
                 response_dict["data"]["result"] = viz_result.get("message", "No visualization created.")
 
             elif agent_name == "trading_agent":
-                logger.debug(f"Executing trading_agent with sql_result: {previous_result_data}")
+                logger.debug(f"Executing trading_agent with sql_result: {len(previous_result_data)} rows")
                 trade_result = run_trading_agent(sub_query, sql_result=previous_result_data)
                 response_dict["data"]["trade_result"] = trade_result
 
@@ -272,7 +237,7 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
             elif agent_name == "rag_agent":
                 logger.debug(f"Executing rag_agent with sub-query: {sub_query}")
                 try:
-                    rag_agent, _ = load_rag_agent()
+                    # rag_agent, _ = load_rag_agent()
                     result = rag_agent.run(sub_query, stream=False)
                     rag_result = getattr(result, "content", str(result)) if result else "No data retrieved from RAG."
                     response_dict["data"]["rag_result"] = rag_result

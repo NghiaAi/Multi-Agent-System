@@ -28,8 +28,6 @@ if st.button("Gửi câu hỏi"):
         
         st.session_state.chat_history.append(f"User: {query}")
         
-        st.subheader("Kết quả:")
-        
         if response.get("status") == "success":
             data = response.get("data", {})
             agents = data.get("agents", [])
@@ -43,18 +41,6 @@ if st.button("Gửi câu hỏi"):
                 st.subheader("Kết quả từ RAG Agent:")
                 st.write(rag_result)
             
-            # if "text2sql_agent" in agents:
-            #     sql_match = re.search(r"SQL Query: (.*?)\nRaw Result:.*?\nAnswer: (.*?)(?:\n|$)", result, re.DOTALL)
-            #     if sql_match:
-            #         sql_query = sql_match.group(1).strip()
-            #         answer = sql_match.group(2).strip()
-            #         st.subheader("Answer:")
-            #         st.write(answer)
-            #         st.subheader("SQL Query:")
-            #         st.code(sql_query, language="sql")
-            #     else:
-            #         st.subheader("Result:")
-            #         st.write(result)
             if "text2sql_agent" in agents and "trading_agent" not in agents:
                 if isinstance(result, str):
                     sql_match = re.search(r"SQL Query: (.*?)\nRaw Result:.*?\nAnswer: (.*?)(?:\n|$)", result, re.DOTALL)
@@ -73,16 +59,6 @@ if st.button("Gửi câu hỏi"):
                     st.subheader("Result:")
                     st.json(result)
 
-            # if "trading_agent" in agents:
-            #     trade_result = data.get("trade_result", {})
-            #     if trade_result.get("status") == "success":
-            #         decision = trade_result["decision"]
-            #         st.subheader(f"Trading Decision for {decision['ticker']}")
-            #         st.write(f"**Signal:** {decision['signal']}")
-            #         st.write(f"**Confidence:** {decision['confidence']}")
-            #         st.write(f"**Explanation:** {decision.get('explanation', '')}")
-            #     else:
-            #         st.error(trade_result.get("message", "Trading agent failed."))
             if "trading_agent" in agents:
                 trade_result = data.get("trade_result", {})
                 
