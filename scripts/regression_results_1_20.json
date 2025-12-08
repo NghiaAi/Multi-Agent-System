@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "question": "[factual, easy] What was the closing price of Microsoft on March 15, 2024?",
+    "answer_expected": "$413.26",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'MSFT' AND DATE(Date) = '2024-03-15'\"}</function>",
+    "secs": 3.54
+  },
+  {
+    "id": 2,
+    "question": "[factual, easy] What was the opening price of Boeing on August 1, 2023?",
+    "answer_expected": "$237.55",
+    "answer_model": "Answer: $209.74",
+    "secs": 4.42
+  },
+  {
+    "id": 3,
+    "question": "[factual, easy] What was the highest price Apple reached on February 28, 2025?",
+    "answer_expected": "$242.09",
+    "answer_model": "Answer: $242.09",
+    "secs": 4.55
+  },
+  {
+    "id": 4,
+    "question": "[factual, easy] What was the lowest price Disney traded at on November 1, 2023?",
+    "answer_expected": "$79.20",
+    "answer_model": "<function(run_sql_query)>{'query\": \"SELECT MIN(Low) FROM prices WHERE Ticker = \\'DIS\\' AND DATE(Date) = \\'2023-11-01\\'\"}</function>",
+    "secs": 3.58
+  },
+  {
+    "id": 5,
+    "question": "[factual, easy] What was the trading volume of Apple on January 2, 2024?",
+    "answer_expected": "82,488,700 shares",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Volume FROM prices WHERE Ticker = 'AAPL' AND DATE(Date) = '2024-01-02'\"}</function>",
+    "secs": 3.03
+  },
+  {
+    "id": 6,
+    "question": "[factual, easy] What was the closing price of Walmart on March 10, 2025?",
+    "answer_expected": "$87.58",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'WMT' AND DATE(Date) = '2025-03-10'\"}</function>",
+    "secs": 2.8
+  },
+  {
+    "id": 7,
+    "question": "[factual, easy] What was the closing price of Disney on October 1, 2024?",
+    "answer_expected": "$93.64",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'DIS' AND DATE(Date) = '2024-10-01'\"}</function>",
+    "secs": 2.92
+  },
+  {
+    "id": 8,
+    "question": "[factual, easy] What was the closing price of Chevron on January 31, 2025?",
+    "answer_expected": "$147.55",
+    "answer_model": "Answer: $149.19",
+    "secs": 6.82
+  },
+  {
+    "id": 9,
+    "question": "[factual, easy] What was the opening price of American Express on January 3, 2025?",
+    "answer_expected": "$299.69",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Open FROM prices WHERE Ticker = 'AXP' AND DATE(Date) = '2025-01-03'\"}</function>",
+    "secs": 13.15
+  },
+  {
+    "id": 10,
+    "question": "[factual, easy] What was the closing price of Visa on March 8, 2024?",
+    "answer_expected": "$234.22",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'V' AND DATE(Date) = '2024-03-08'\"}</function>",
+    "secs": 12.07
+  },
+  {
+    "id": 11,
+    "question": "[factual, easy] What was the closing price of Nike on November 10, 2023?",
+    "answer_expected": "$104.32",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'NKE' AND DATE(Date) = '2023-11-10'\"}</function>",
+    "secs": 12.5
+  },
+  {
+    "id": 12,
+    "question": "[factual, easy] What was the closing price of JPMorgan Chase on April 18, 2025?",
+    "answer_expected": "$141.88",
+    "answer_model": "Answer: I don't know. No data available for JPMorgan Chase.",
+    "secs": 25.04
+  },
+  {
+    "id": 13,
+    "question": "[factual, easy] What was the closing price of Johnson & Johnson on January 31, 2025?",
+    "answer_expected": "$161.02",
+    "answer_model": "Answer: $152.15",
+    "secs": 25.75
+  },
+  {
+    "id": 14,
+    "question": "[factual, easy] What was the closing price of Caterpillar on December 2, 2024?",
+    "answer_expected": "$265.11",
+    "answer_model": "Answer: $402.51",
+    "secs": 24.99
+  },
+  {
+    "id": 15,
+    "question": "[factual, easy] What was the closing price of 3M on December 15, 2023?",
+    "answer_expected": "$99.42",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'MMM' AND DATE(Date) = '2023-12-15'\"}</function>",
+    "secs": 11.98
+  },
+  {
+    "id": 16,
+    "question": "[factual, easy] What was the closing price of Procter & Gamble on May 6, 2024?",
+    "answer_expected": "$156.77",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'PG' AND DATE(Date) = '2024-05-06'\"}</function>",
+    "secs": 13.26
+  },
+  {
+    "id": 17,
+    "question": "[factual, easy] What was the closing price of Walgreens Boots Alliance on August 1, 2024?",
+    "answer_expected": "$15.23",
+    "answer_model": "Answer: I don't know. No data available for Walgreens Boots Alliance.",
+    "secs": 24.93
+  },
+  {
+    "id": 18,
+    "question": "[factual, easy] What was the closing price of Merck on October 10, 2024?",
+    "answer_expected": "$107.35",
+    "answer_model": "Answer: $109.40",
+    "secs": 25.77
+  },
+  {
+    "id": 19,
+    "question": "[factual, easy] What was the closing price of Travelers on July 20, 2024?",
+    "answer_expected": "$174.28",
+    "answer_model": "Answer: I don't know. No data available for Travelers.",
+    "secs": 24.56
+  },
+  {
+    "id": 20,
+    "question": "[factual, easy] What was the closing price of Home Depot on December 1, 2024?",
+    "answer_expected": "$315.50",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'HD' AND DATE(Date) = '2024-12-01'\"}</function>",
+    "secs": 13.26
+  }
+]

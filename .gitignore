@@ -1,0 +1,7 @@
+.env
+key.json
+scripts/README.md
+venv/
+keytest.txt
+__pycache__/
+agents/prep.ipynb

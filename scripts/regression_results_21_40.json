@@ -1,0 +1,182 @@
+[
+  {
+    "id": 21,
+    "question": "[factual, easy] What was the closing price of Dow Inc. on February 14, 2025?",
+    "answer_expected": "$40.32",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'DOW' AND DATE(Date) = '2025-02-14'\"}</function>",
+    "secs": 5.58,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 22,
+    "question": "[factual, easy] What was the closing price of Cisco on February 2, 2024?",
+    "answer_expected": "$48.74",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'CSCO' AND DATE(Date) = '2024-02-02'\"}</function>",
+    "secs": 3.02,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 23,
+    "question": "[factual, easy] What was the closing price of Amgen on March 10, 2024?",
+    "answer_expected": "$233.58",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'AMGN' AND DATE(Date) = '2024-03-10'\"}</function>",
+    "secs": 2.73,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 24,
+    "question": "[factual, easy] What was the closing price of UnitedHealth Group on May 10, 2024?",
+    "answer_expected": "$498.20",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'UNH' AND DATE(Date) = '2024-05-10'\"}</function>",
+    "secs": 2.94,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 25,
+    "question": "[factual, easy] What was the closing price of Goldman Sachs on May 1, 2024?",
+    "answer_expected": "$328.45",
+    "answer_model": "Answer: $426.95",
+    "secs": 6.51,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 26,
+    "question": "[factual, easy] What was the closing price of Honeywell on October 15, 2024?",
+    "answer_expected": "$182.90",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Close FROM prices WHERE Ticker = 'HON' AND DATE(Date) = '2024-10-15'\"}</function>",
+    "secs": 13.06,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 27,
+    "question": "[factual, easy] What was the closing price of McDonald’s on June 30, 2024?",
+    "answer_expected": "$290.11",
+    "answer_model": "Answer: I don't know. No data available for McDonald's closing price on June 30, 2024.",
+    "secs": 24.88,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 28,
+    "question": "[factual, easy] What was the closing price of IBM on March 1, 2024?",
+    "answer_expected": "$132.50",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Close FROM prices WHERE Ticker = 'IBM' AND DATE(Date) = '2024-03-01'\"}</function>",
+    "secs": 12.59,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 29,
+    "question": "[factual, easy] What was the trading volume of Verizon on March 5, 2025?",
+    "answer_expected": "18,750,000 shares",
+    "answer_model": "Answer: 18,038,400",
+    "secs": 25.91,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 30,
+    "question": "[factual, easy] What was the trading volume of Walt Disney on March 5, 2025?",
+    "answer_expected": "9,956,100 shares",
+    "answer_model": "Answer: The trading volume of Walt Disney on March 5, 2025, was 9,956,100.",
+    "secs": 25.09,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 31,
+    "question": "[factual, easy] What was the trading volume of Salesforce on March 5, 2025?",
+    "answer_expected": "6,612,600 shares",
+    "answer_model": "Answer: 6,612,600",
+    "secs": 25.61,
+    "key_index": 1,
+    "key_last6": "0JrCUw"
+  },
+  {
+    "id": 32,
+    "question": "[factual, easy] What was the trading volume of Boeing on March 5, 2025?",
+    "answer_expected": "7,355,800 shares",
+    "answer_model": "Answer: 7,355,800",
+    "secs": 8.8,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 33,
+    "question": "[factual, medium] On what date did Apple stock reach its highest closing price in 2024, and what was",
+    "answer_expected": "December 31, 2024, with a closing price of $250.14",
+    "answer_model": "Answer: The highest closing price of Apple stock in 2024 was $259.02 on December 26, 2024.",
+    "secs": 7.82,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 34,
+    "question": "[factual, medium] What was the lowest closing price of Verizon in 2023, and on what date did it occur?",
+    "answer_expected": "$27.81, on October 13, 2023",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT MIN(Close), Date FROM prices WHERE Ticker = 'VZ' AND STRFTIME('%Y', Date) = '2023' ORDER BY Date\"}</function>",
+    "secs": 6.9,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 35,
+    "question": "[factual, medium] What was the highest closing price of Microsoft in 2024, and when was it achieved?",
+    "answer_expected": "$422.00 on March 14, 2024",
+    "answer_model": "Answer: The highest closing price of Microsoft in 2024 was $467.56, achieved on July 5, 2024.",
+    "secs": 39.88,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 36,
+    "question": "[factual, medium] How many dividends did Apple pay in 2024?",
+    "answer_expected": "4",
+    "answer_model": "Answer: Apple paid $0.99 in dividends in 2024.",
+    "secs": 25.88,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 37,
+    "question": "[factual, medium] What dividend per share did Microsoft pay on May 17, 2023?",
+    "answer_expected": "$0.68",
+    "answer_model": "Answer: $0.00",
+    "secs": 24.54,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 38,
+    "question": "[factual, medium] On what date did Walmart execute a stock split, and what was the split ratio?",
+    "answer_expected": "February 26, 2024 (3-for-1 split)",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Date, `Stock Splits` FROM prices WHERE Ticker = 'WMT' AND `Stock Splits` > 0 ORDER BY Date LIMIT 1\"}</function>",
+    "secs": 12.34,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 39,
+    "question": "[comparative, easy] On January 15, 2025, which company had a higher closing price, Apple or Mi-",
+    "answer_expected": "Microsoft, with a closing price of about $412, compared to Apple’s $237.61",
+    "answer_model": "<function/run_sql_query>{\"query\": \"SELECT Ticker, Close FROM prices WHERE Date = '2025-01-15 00:00:00-05:00' AND (Ticker = 'AAPL' OR Ticker = 'MSFT') ORDER BY Close DESC\"}</function>",
+    "secs": 13.82,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  },
+  {
+    "id": 40,
+    "question": "[comparative, easy] On July 1, 2024, which had a higher closing price: Coca-Cola or McDonald’s?",
+    "answer_expected": "McDonald’s, with a closing price around $290, versus about $65 for Coca-Cola",
+    "answer_model": "<function(run_sql_query){\"query\": \"SELECT Ticker, Close FROM prices WHERE (Ticker = 'KO' OR Ticker = 'MCD') AND DATE(Date) = '2024-07-01'\"}</function>",
+    "secs": 12.49,
+    "key_index": 2,
+    "key_last6": "rGOMH4"
+  }
+]
