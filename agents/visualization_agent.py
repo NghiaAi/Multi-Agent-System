@@ -144,7 +144,7 @@ def create_visualize_agent():
             top_p=0.8,
         ),
         system_prompt=system_prompt,
-        debug_mode=True,
+        debug_mode=False,
     )
 
 def run_visualize_agent(query: str, sql_data: list = None, chat_history: list = []) -> Dict[str, Any]:

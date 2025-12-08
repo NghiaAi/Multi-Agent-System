@@ -20,40 +20,9 @@ db_url = f"sqlite:///{db_path}"
 
 engine = create_engine(db_url)
 
-# MAX_CONTEXT_TOKENS = 14000         # tổng context mà bạn dùng để tính toán
-# BASE_PROMPT_TOKENS = 2367          # system + instructions + tool spec + v.v.
-# TOKENS_PER_ROW = 48                # token trung bình cho 1 dòng kết quả
-
-# encoding = tiktoken.get_encoding("cl100k_base")
-
-# def count_tokens(text: str) -> int:
-#     if not text:
-#         return 0
-#     return len(encoding.encode(text))
-
-# class UnlimitedSQLTools(SQLTools):
-#     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
-#         try:
-#             if limit is None:
-#                 query_tokens = count_tokens(query)
-#                 available_for_result = MAX_CONTEXT_TOKENS - BASE_PROMPT_TOKENS - query_tokens
-#                 if available_for_result <= 0:
-#                     max_rows = 1
-#                 else:
-#                     est_rows = available_for_result // TOKENS_PER_ROW
-#                     max_rows = max(1, est_rows)
-#             else:
-#                 max_rows = limit
-
-#             result = self.run_sql(sql=query, limit=max_rows)
-#             return json.dumps(result, default=str)
-#         except Exception as e:
-#             return json.dumps({"error": f"Error running query: {e}"})
-# sql_tools = UnlimitedSQLTools(db_url=db_url)
-
-MAX_CONTEXT_TOKENS = 14000         # tổng context mà bạn dùng để tính toán
-BASE_PROMPT_TOKENS = 2367          # system + instructions + tool spec + v.v.
-TOKENS_PER_ROW = 48                # token trung bình cho 1 dòng kết quả
+MAX_CONTEXT_TOKENS = 14000         
+BASE_PROMPT_TOKENS = 2400          
+TOKENS_PER_ROW = 48                
 
 encoding = tiktoken.get_encoding("cl100k_base")
 
@@ -62,10 +31,9 @@ def count_tokens(text: str) -> int:
         return 0
     return len(encoding.encode(text))
 
-class UnlimitedSQLTools(SQLTools):
+class LimitedSQLTools(SQLTools):
     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
         try:
-            # Tính max_rows theo token nếu agent không truyền limit
             if limit is None:
                 query_tokens = count_tokens(query)
                 available_for_result = MAX_CONTEXT_TOKENS - BASE_PROMPT_TOKENS - query_tokens
@@ -77,37 +45,21 @@ class UnlimitedSQLTools(SQLTools):
             else:
                 max_rows = limit
 
-            # 1) Lấy FULL kết quả từ SQL (không giới hạn ở DB)
             full_result = self.run_sql(sql=query, limit=None)
 
-            # 2) Nếu không phải list hoặc số dòng nhỏ hơn max_rows thì trả về luôn
             if not isinstance(full_result, list) or len(full_result) <= max_rows:
                 result = full_result
             else:
-                # 3) Nếu là list[dict] và có cột Date thì sort theo Date rồi lấy các dòng mới nhất
                 if full_result and isinstance(full_result[0], dict) and "Date" in full_result[0]:
                     sorted_result = sorted(full_result, key=lambda r: r.get("Date") or "")
                     result = sorted_result[-max_rows:]
                 else:
-                    # Không có Date: đơn giản lấy các phần tử cuối cùng
                     result = full_result[-max_rows:]
 
             return json.dumps(result, default=str)
         except Exception as e:
             return json.dumps({"error": f"Error running query: {e}"})
-sql_tools = UnlimitedSQLTools(db_url=db_url)
-
-
-
-# class UnlimitedSQLTools(SQLTools):
-#     def run_sql_query(self, query: str, limit: Optional[int] = None) -> str:
-#         try:
-#             result = self.run_sql(sql=query, limit=limit)
-#             return json.dumps(result, default=str)
-#         except Exception as e:
-#             return f"Error running query: {e}"
-
-# sql_tools = UnlimitedSQLTools(db_url=db_url)
+sql_tools = LimitedSQLTools(db_url=db_url)
 
 company_to_symbol = {
     "Apple Inc.": "AAPL",
@@ -142,21 +94,6 @@ company_to_symbol = {
     "Walmart Inc.": "WMT"
 }
 
-sql_tool_schema = {
-    "type": "function",
-    "function": {
-        "name": "run_sql_query",
-        "description": "Execute a SQL query on the DJIA database and return the result as a JSON string.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "The SQL query to execute."},
-                "limit": {"type": "integer", "description": "Optional limit for the number of rows to return.", "default": None}
-            },
-            "required": ["query"]
-        }
-    }
-}
 
 agent = Agent(
     model=Groq(
@@ -207,20 +144,22 @@ agent = Agent(
         f"Use this mapping to convert company names to tickers for querying the 'prices' table, or to map tickers back to company names in results: {json.dumps(company_to_symbol, ensure_ascii=False, indent=2)}",
         "### Instructions for Queries",
         "- Always use the company-to-symbol mapping to convert company names to tickers (e.g., 'UnitedHealth Group' → 'UNH') for querying the 'prices' table. Match flexibly by removing suffixes like 'Inc.', 'Company', '(The)', and use case-insensitive substring matching. If ambiguous or no match, note it and return 'I don't know'.",
+        "- YOU ARE USING PURE SQLITE (version 3.45+). SQLite has NO built-in statistical functions like STDEV(), STDDEV(), VARIANCE(), COVAR_POP(), CORR(), MEDIAN(), PERCENTILE(), etc. NEVER use them — they will cause errors. Always use manual formulas: standard deviation = SQRT(AVG(x*x) - AVG(x)*AVG(x)), covariance/variance/beta must be calculated step-by-step with CTEs and AVG(). If a function doesn't exist in official SQLite documentation, DO NOT use it.",
         "- For queries involving all DJIA companies (e.g., total dividends per company), query the 'prices' table, group by Ticker, and calculate aggregates (e.g., SUM(Dividends)). In the Raw Result, map each Ticker to its company name using the company-to-symbol mapping, and include ALL companies (30) even if SUM=0 or no data (set Total_Dividends=0 for those).",
         "- Only query the 'companies' table if static info (e.g., market_cap, sector) is explicitly needed.",
         "- For visualization queries requiring time series (e.g., cumulative returns), select individual values (e.g., Date, Close, Ticker) from the 'prices' table, ordered by Date.",
         "- For any query asking for pie chart / distribution / breakdown of DJIA companies by sector. Use Count(*) do not use DISTINCT.",
+        "- For any query asking 'how many days trading' or 'how many days' (e.g., 'How many trading days in 2024 did Boeing trade?', 'How many trading days in 2024 had Disney's closing price above $90?'), use COUNT(*) to count the number of records, not SELECT all data. Example: SELECT COUNT(*) AS trading_days FROM prices WHERE Ticker = 'BA' AND STRFTIME('%Y', Date) = '2024'",
         "- For cumulative returns queries (e.g., 'cumulative returns of UNH in 2024'), query daily closing prices for the specified ticker and year: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date.",
         "- For dividend queries specifying a date (e.g., 'dividend per share of MSFT on May 17, 2023'), query the 'Dividends' column from the 'prices' table using the DATE() function to match the date: SELECT Dividends FROM prices WHERE Ticker = '[TICKER]' AND DATE(Date) = '[YYYY-MM-DD]'.",
-        "- For historical price queries (e.g., 'last 90 trading days of AAPL'), always select Date, Open, High, Low, Close, Adj Close, Volume, Ticker. ",
+        "- For historical price queries (e.g., 'last 90 trading days of AAPL'), always select Date, Open, High, Low, Close, \"Adj Close\", Volume, Ticker.",
+        "- For statistical calculations, use SQLite-compatible functions: use STDEV() instead of STDDEV() for standard deviation.",
         "- When the user asks for a 'boxplot of market capitalization values grouped by sector' or 'boxplot market cap by sector' ALWAYS query individual company data (Not aggregates) from the 'companies' table: SELECT sector, market_cap FROM companies ORDER BY sector, market_cap DESC;",
         "- To call the 'run_sql_query' tool, ALWAYS respond with a JSON array of tool calls in this exact format: [{'id': 'call_id', 'type': 'function', 'function': {'name': 'run_sql_query', 'arguments': '{\"query\": \"YOUR SQL QUERY HERE\"}'}}]. Replace 'call_id' with a unique ID like 'call_123'.",
         "- When calling run_sql_query, pass the SQL query as a JSON object with 'query' key.",
         "- After receiving the result from run_sql_query, process it to extract the relevant value.",
         "- If the query result is empty, return 'I don't know. No data available for [company or data type].'.",
         "- For price values, format to 2 decimal places (e.g., $123.45). For returns, format as percentage to 2 decimal places (e.g., 5.23%).",
-        
         "- Example: For 'Cumulative returns of UnitedHealth Group (UNH) in 2024':",
         "  SQL: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date",
         "  Raw Result: [{'Date': '2024-01-01 00:00:00-05:00', 'Close': 526.47, 'Ticker': 'UNH'}, ...]",
@@ -231,6 +170,6 @@ agent = Agent(
         "- If the tool call fails or returns no data, return 'I don't know. No data available for [company or data type].'.",
     ],
     debug_mode=True,
-    max_tool_calls=5,
+    max_tool_calls=1,
     tool_call_strategy="auto",
 )

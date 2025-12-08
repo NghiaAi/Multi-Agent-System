@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Any
 from pathlib import Path
 import re
-
+import time
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 from phi.agent import Agent
@@ -15,10 +15,12 @@ from agents.text_to_sql_agent import agent as sql_agent
 from agents.visualization_agent import run_visualize_agent
 from agents.rag_agent import load_agent as load_rag_agent
 from agents.trading_agent import run_trading_agent
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+
+# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 load_dotenv()
+
 
 # Environment variables
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -46,8 +48,16 @@ TOOLS_CONFIG = {
     },
     "rag_agent": {
         "intents": [
-            "pdf", "document", "paper", "research", "contribution", "summary", 
-            "analyze", "content", "article", "report"
+            "pdf", "document", "report", "filing", "10-k", "10k", "sec",
+            "annual report", "quarterly report", "financial statement",
+            "income statement", "balance sheet", "cash flow",
+            "risk factors", "md&a", "management discussion",
+            "according to the document", "according to the report",
+            "reported", "reported revenue", "reported earnings",
+            "extract", "summarize section", "find in document",
+            "analyze content", "article", "paper", "content",
+            "business overview", "segment information", "contribution", "summary",
+            "analyze", "content", "report", "narrative", "according to the filing"
         ],
         "sub_query_template": "{query}",
         "description": "Analyzes content from PDF documents using RAG"
@@ -77,7 +87,8 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
    - Match intents:
      {tools_config_json}
    - Use text2sql_agent for stock/data queries (e.g., 'stock', 'price', 'volume', 'returns', 'cumulative returns').
-   - Add visualization_agent after text2sql_agent if query contains visualization intents (e.g., 'chart', 'plot', 'line').
+   - ONLY add visualization_agent after text2sql_agent if query EXPLICITLY requests visualization (contains words like 'plot', 'chart', 'graph', 'visualize', 'bar chart', 'pie chart', 'line chart', 'scatter plot', 'heatmap', 'boxplot', 'histogram', 'distribution').
+   - Do NOT add visualization_agent for factual questions that just ask for data values (e.g., "What was the closing price?", "What was the highest price?", "How many dividends?").
    - Use rag_agent for queries about PDF documents or research papers (e.g., 'pdf', 'document', 'contribution', 'summary').
    - Use trading_agent when user asks about "buy", "sell", "hold", "invest", "trade", or "recommendation".
    - Output agents in order (e.g., ["text2sql_agent", "visualization_agent"], ["text2sql_agent", "trading_agent"], or ["rag_agent"]).
@@ -88,26 +99,41 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
    - If no date range, set date_range to null.
    - For rag_agent, tickers and date_range are typically null unless the query involves stock-related PDF content.
 
-4. Special Rule — Trading Queries:
-   - If the query involves "buy", "sell", "hold", "invest", or "recommendation":
-     - Always include both "text2sql_agent" and "trading_agent" in order.
-     - The text2sql_agent must fetch recent 60–90 trading days of historical data for the ticker.
-     - Example SQL query to use (write it as plain text):
-       SELECT Date, Open, High, Low, Close, Volume, Ticker
-       FROM prices
-       WHERE Ticker = '[TICKER]'
-       ORDER BY Date DESC
-       LIMIT 90;
-     - Even if user asks "for the next 5 days", still fetch the last 60–90 days of historical data for model features.
-     - Then trading_agent will make the decision (BUY, HOLD, SELL) and provide explanation.
-5. Create Sub-Queries:
-   - For text2sql_agent, create sub-query to fetch required data.
-     Tailor it to the visualization if applicable (e.g., for time series plot, "What are the closing prices of [ticker] during [period]?").
+4. Create Sub-Queries:
+   - For text2sql_agent:
+        • If the query is a factual/analytical question (how many, highest, lowest, average, standard deviation, dividends, volume, etc.) OR does NOT contain visualization keywords:
+             → COPY THE USER'S ORIGINAL QUESTION EXACTLY. NEVER rewrite it.
+             Examples:
+             - "How many trading days in 2024 had Boeing’s closing price within one standard deviation of its mean?"
+               → sub-query: exactly the same sentence
+             - "What was the highest closing price of Apple in 2024?"
+               → sub-query: exactly the same sentence
+
+        • If the query contains visualization keywords (plot, chart, graph, rolling average, moving average, cumulative return, etc.):
+             → Rewrite as a data-fetching question: "What are the daily closing prices of [ticker] in [period]?"
+             Examples:
+             - "Plot the cumulative return of MSFT in 2024"
+               → sub-query: "What are the daily closing prices of Microsoft (MSFT) in 2024?"
+             - "Show me the 30-day rolling average of MSFT in 2024"
+               → sub-query: "What are the daily closing prices of Microsoft (MSFT) in 2024?"
+             - "Draw a line chart of AAPL price"
+               → sub-query: "What are the daily closing prices of Apple (AAPL) in the requested period?" Tailor it to the visualization if applicable (e.g., for time series plot, "What are the closing prices of [ticker] during [period]?").
+         
+         • If the query contains trading keywords (buy, sell, hold, invest, recommendation, signal, trade):
+             → Always include BOTH agents in order: ["text2sql_agent", "trading_agent"].
+             → For text2sql_agent sub-query (MUST include all price columns for trading):
+                SELECT Date, Open, High, Low, Close, "Adj Close", Volume, Ticker
+                FROM prices
+                WHERE Ticker = '[TICKER]'
+                ORDER BY Date DESC
+                LIMIT 90;
+             → Do NOT drop "Adj Close". Keep all columns; limit rows instead of removing columns.
+
    - For trading_agent, pass the investment or recommendation question directly (e.g., "Should I buy or sell AAPL for the next 5 days?").
    - For visualization_agent, use the original query as sub-query to describe the visualization.
    - For rag_agent, use the original query as the sub-query for document analysis.
 
-6. Output JSON Structure:
+5. Output JSON Structure:
    - Always output strictly in JSON:
      {{
        "status": "success|error",
@@ -123,7 +149,6 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
        }}
      }}
 """
-
     return Agent(
         model=Groq(
             id="llama-3.3-70b-versatile",
@@ -149,9 +174,7 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
         if isinstance(raw_content, bytes):
             raw_content = raw_content.decode("utf-8")
 
-        # 🧹 Loại bỏ code fences hoặc markdown (```json ... ```)
         clean_content = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_content.strip())
-
         try:
             response_dict = json.loads(clean_content)
         except json.JSONDecodeError:
@@ -161,7 +184,6 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 "message": "Failed to parse orchestrator JSON output.",
                 "data": {}
             }
-
         logger.debug(f"Orchestrator response: {json.dumps(response_dict, ensure_ascii=False)}")
         
         agents = response_dict.get("data", {}).get("agents", [])
@@ -180,8 +202,6 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 try:
                     result = sql_agent.run(sub_query, stream=False, execute_tools=True)
                     previous_result = getattr(result, "content", str(result)) if result else "No data retrieved from SQL."
-                    
-                    # Extract tool output from agent's memory
                     tool_messages = [msg for msg in sql_agent.memory.messages if msg.role == 'tool']
                     if tool_messages:
                         tool_output = tool_messages[-1].content
@@ -201,7 +221,6 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                     logger.debug(f"Parsed sql_result: {previous_result_data}")
                 except Exception as e:
                     logger.error(f"Text2SQL agent failed: {str(e)}")
-                    # Still attempt to extract tool output even on failure
                     tool_messages = [msg for msg in sql_agent.memory.messages if msg.role == 'tool']
                     if tool_messages:
                         tool_output = tool_messages[-1].content
@@ -220,13 +239,17 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
             elif agent_name == "visualization_agent":
                 logger.debug(f"Executing visualization_agent with sub-query: {sub_query}")
                 logger.debug(f"Passing sql_data to visualization_agent: {len(previous_result_data)} rows")
+                time.sleep(2)
                 viz_result = run_visualize_agent(sub_query, sql_data=previous_result_data)
                 response_dict["data"]["visualization"] = viz_result.get("visualization")
                 response_dict["data"]["result"] = viz_result.get("message", "No visualization created.")
 
             elif agent_name == "trading_agent":
                 logger.debug(f"Executing trading_agent with sql_result: {len(previous_result_data)} rows")
-                trade_result = run_trading_agent(sub_query, sql_result=previous_result_data)
+                tickers = response_dict.get("data", {}).get("tickers", [])
+                ticker = tickers[0] if tickers else "UNKNOWN"
+                time.sleep(2)
+                trade_result = run_trading_agent(sub_query, sql_result=previous_result_data, ticker= ticker)
                 response_dict["data"]["trade_result"] = trade_result
 
                 if trade_result.get("status") == "success":

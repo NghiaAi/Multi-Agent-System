@@ -21,9 +21,9 @@ for model_path in MODELS_DIR.glob("*_model.joblib"):
     ticker = model_path.stem.replace("_model", "").upper()
     try:
         models[ticker] = joblib.load(model_path)
-        print(f"✅ Loaded model for {ticker}")
+        print(f"Loaded model for {ticker}")
     except Exception as e:
-        print(f"❌ Failed to load {model_path.name}: {e}")
+        print(f"Failed to load {model_path.name}: {e}")
 
 print("Loaded tickers:", list(models.keys()))
 
@@ -144,20 +144,20 @@ def predict_signal(ticker: str, df: pd.DataFrame) -> dict:
         "signal": signal,
         "confidence": round(confidence, 3),
         "probabilities": {signal_map[i]: float(p) for i, p in enumerate(probs)},
-        "feature_values": X.iloc[0].to_dict()  # ✅ giá trị feature thực tế
+        "feature_values": X.iloc[0].to_dict()  
     }
 
 
 def create_genai_explainer(features: list):
     feature_list_str = ", ".join(features)
     system_prompt = f"""
-You are a financial AI analyst assistant.
-Given a model decision output (BUY, HOLD, or SELL), confidence score, and the most recent values of all features,
-explain the reasoning behind the recommendation in a short, professional, and data-driven style.
-Use the actual numerical values of features in your explanation where relevant.
-Format the answer as JSON:
-{{"signal": "...", "confidence": ..., "explanation": "..."}}
-"""
+        You are a financial AI analyst assistant.
+        Given a model decision output (BUY, HOLD, or SELL), confidence score, and the most recent values of all features,
+        explain the reasoning behind the recommendation in a short, professional, and data-driven style.
+        Use the actual numerical values of features in your explanation where relevant.
+        Format the answer as JSON:
+        {{"signal": "...", "confidence": ..., "explanation": "..."}}
+        """
     return Agent(
         model=Groq(
             id="llama-3.3-70b-versatile",
@@ -170,21 +170,14 @@ Format the answer as JSON:
         debug_mode=True,
     )
 
-def run_trading_agent(query: str, sql_result: list = None) -> dict:
+def run_trading_agent(query: str, sql_result: list = None, ticker: str = None) -> dict:
     if not sql_result or not isinstance(sql_result, list) or len(sql_result) == 0:
         return {"status": "error", "message": "No data for trading decision."}
 
+    if not ticker or ticker.strip() == "":
+        return {"status": "error", "message": "Ticker not provided or invalid."}
+
     df = pd.DataFrame(sql_result)
-    if "Ticker" not in df.columns:
-        import re
-        match = re.search(r"\b([A-Z]{1,5})\b", query)
-        if match:
-            ticker = match.group(1).upper()
-            df["Ticker"] = ticker
-        else:
-            return {"status": "error", "message": "Cannot infer ticker from query."}
-    else:
-        ticker = str(df["Ticker"].iloc[-1]).upper()
 
     decision = predict_signal(ticker, df)
 

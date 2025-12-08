@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import json
 import re
@@ -11,6 +9,7 @@ from PIL import Image
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
+
 from agents.orchestrator_agent import run_orchestrator
 
 st.title("Agent Query System")
@@ -25,7 +24,7 @@ if st.button("Gửi câu hỏi"):
         chat_history = st.session_state.chat_history[-2:]
         with st.spinner("Đang xử lý câu hỏi..."):
             response = run_orchestrator(query, chat_history=chat_history)
-        
+
         st.session_state.chat_history.append(f"User: {query}")
         
         if response.get("status") == "success":
@@ -55,7 +54,6 @@ if st.button("Gửi câu hỏi"):
                         st.subheader("Result:")
                         st.write(result)
                 else:
-                    # Nếu result không phải string (tức là dict từ trading agent)
                     st.subheader("Result:")
                     st.json(result)
 
@@ -71,7 +69,6 @@ if st.button("Gửi câu hỏi"):
 
                     st.subheader(f"Trading Decision for {ticker}")
 
-                    # Hiển thị Signal theo màu
                     if signal == "BUY":
                         st.success(f"**Signal:** {signal}")
                     elif signal == "SELL":
@@ -81,31 +78,25 @@ if st.button("Gửi câu hỏi"):
                     else:
                         st.warning(f"**Signal:** {signal}")
 
-                    # Confidence
                     st.write(f"**Confidence:** {confidence:.2f}")
 
-                    # Probabilities nếu có
                     probs = decision.get("probabilities")
                     if probs:
                         st.write("**Probabilities:**")
                         st.json(probs)
 
-                    # Explanation
                     st.write("**Explanation:**")
                     if isinstance(explanation, dict):
                         st.json(explanation)
                     else:
                         st.write(explanation)
-
                 else:
-                    # Nếu trading agent trả về lỗi
                     message = trade_result.get("message", "Trading agent failed.")
                     st.error(message)
 
             if "visualization_agent" in agents and visualization is not None:
                 st.subheader("Visualization:")
                 try:
-                    # Convert NumPy array to PIL Image and display
                     img = Image.fromarray(visualization)
                     st.image(img, use_column_width=True)
                 except Exception as e:
