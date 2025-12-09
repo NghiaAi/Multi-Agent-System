@@ -239,8 +239,8 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
             elif agent_name == "visualization_agent":
                 logger.debug(f"Executing visualization_agent with sub-query: {sub_query}")
                 logger.debug(f"Passing sql_data to visualization_agent: {len(previous_result_data)} rows")
-                time.sleep(2)
                 viz_result = run_visualize_agent(sub_query, sql_data=previous_result_data)
+                time.sleep(2)
                 response_dict["data"]["visualization"] = viz_result.get("visualization")
                 response_dict["data"]["result"] = viz_result.get("message", "No visualization created.")
 
@@ -248,8 +248,8 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 logger.debug(f"Executing trading_agent with sql_result: {len(previous_result_data)} rows")
                 tickers = response_dict.get("data", {}).get("tickers", [])
                 ticker = tickers[0] if tickers else "UNKNOWN"
-                time.sleep(2)
                 trade_result = run_trading_agent(sub_query, sql_result=previous_result_data, ticker= ticker)
+                time.sleep(2)
                 response_dict["data"]["trade_result"] = trade_result
 
                 if trade_result.get("status") == "success":
@@ -262,6 +262,7 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 try:
                     # rag_agent, _ = load_rag_agent()
                     result = rag_agent.run(sub_query, stream=False)
+                    time.sleep(2)
                     rag_result = getattr(result, "content", str(result)) if result else "No data retrieved from RAG."
                     response_dict["data"]["rag_result"] = rag_result
                     response_dict["data"]["result"] = rag_result
