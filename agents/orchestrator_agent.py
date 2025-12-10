@@ -162,7 +162,7 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
             top_p=0.8,
         ),
         system_prompt=system_prompt,
-        debug_mode=False,
+        debug_mode=True,
     )
     
 rag_agent, _ = load_rag_agent()

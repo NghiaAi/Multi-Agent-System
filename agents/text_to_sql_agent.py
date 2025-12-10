@@ -169,7 +169,7 @@ agent = Agent(
         "- After receiving the tool result, ALWAYS provide a final response in this format:\nSQL Query: [the SQL query you used]\nRaw Result: [the raw result with company names mapped]\nAnswer: [your formatted answer based on the result].",
         "- If the tool call fails or returns no data, return 'I don't know. No data available for [company or data type].'.",
     ],
-    debug_mode=False,
+    debug_mode=True,
     max_tool_calls=1,
     tool_call_strategy="auto",
 )

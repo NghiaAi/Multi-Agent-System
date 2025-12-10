@@ -113,8 +113,12 @@ if query:
     with st.chat_message("user"):
         st.markdown(query)
     
+    if "full_user_history" not in st.session_state:
+        st.session_state.full_user_history = []
+    st.session_state.full_user_history.append(query)
+    chat_history = st.session_state.full_user_history[-5:]
+
     with st.spinner("Processing..."):
-        chat_history = [msg["content"] for msg in st.session_state.messages[-3:-1] if msg["role"] == "user"]  
         response = run_orchestrator(query, chat_history=chat_history)
     st.session_state.messages.append({"role": "assistant", "response": response})
     

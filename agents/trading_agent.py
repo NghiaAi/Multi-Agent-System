@@ -184,7 +184,7 @@ def create_genai_explainer(features: list):
             max_tokens=1000,
         ),
         system_prompt=system_prompt,
-        debug_mode=False,
+        debug_mode=True,
     )
 
 
