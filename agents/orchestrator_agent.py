@@ -63,9 +63,9 @@ TOOLS_CONFIG = {
         "description": "Analyzes content from PDF documents using RAG"
     },
     "trading_agent": {
-    "intents": ["buy", "sell", "hold", "invest", "trade", "recommendation", "signal", "invest", "investment"],
-    "sub_query_template": "{query}",
-    "description": "Provides trading decision and GenAI explanation using ML models"
+        "intents": ["buy", "sell", "hold", "invest", "trade", "recommendation", "signal", "invest", "investment"],
+        "sub_query_template": "{query}",
+        "description": "Provides trading decision and GenAI explanation using ML models"
     }
 }
 
@@ -118,7 +118,9 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
                → sub-query: "What are the daily closing prices of Microsoft (MSFT) in 2024?"
              - "Draw a line chart of AAPL price"
                → sub-query: "What are the daily closing prices of Apple (AAPL) in the requested period?" Tailor it to the visualization if applicable (e.g., for time series plot, "What are the closing prices of [ticker] during [period]?").
-         
+             - "Create a boxplot of monthly closing prices of Walt Disney (DIS) for each month of 2024.?"
+               → sub-query: "What are the daily closing prices of Walt Disney (DIS) in 2024?",
+
          • If the query contains trading keywords (buy, sell, hold, invest, recommendation, signal, trade):
              → Always include BOTH agents in order: ["text2sql_agent", "trading_agent"].
              → For text2sql_agent sub-query (MUST include all price columns for trading):
@@ -126,7 +128,7 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
                 FROM prices
                 WHERE Ticker = '[TICKER]'
                 ORDER BY Date DESC
-                LIMIT 90;
+                LIMIT 120;
              → Do NOT drop "Adj Close". Keep all columns; limit rows instead of removing columns.
 
    - For trading_agent, pass the investment or recommendation question directly (e.g., "Should I buy or sell AAPL for the next 5 days?").
@@ -160,7 +162,7 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
             top_p=0.8,
         ),
         system_prompt=system_prompt,
-        debug_mode=True,
+        debug_mode=False,
     )
     
 rag_agent, _ = load_rag_agent()
@@ -249,7 +251,6 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
                 tickers = response_dict.get("data", {}).get("tickers", [])
                 ticker = tickers[0] if tickers else "UNKNOWN"
                 trade_result = run_trading_agent(sub_query, sql_result=previous_result_data, ticker= ticker)
-                time.sleep(2)
                 response_dict["data"]["trade_result"] = trade_result
 
                 if trade_result.get("status") == "success":

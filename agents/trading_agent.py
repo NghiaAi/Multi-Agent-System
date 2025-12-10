@@ -119,7 +119,12 @@ def add_enhanced_features(df):
 def predict_signal(ticker: str, df: pd.DataFrame) -> dict:
     ticker = ticker.upper()
     if ticker not in models:
-        return {"ticker": ticker, "signal": "UNKNOWN", "confidence": 0.0, "reason": "Model not found"}
+        return {
+            "ticker": ticker,
+            "signal": "UNKNOWN",
+            "probabilities": {"BUY": 0.0, "HOLD": 0.0, "SELL": 0.0},
+            "reason": "Model not found"
+        }
 
     model_bundle = models[ticker]
     model = model_bundle["model"]
@@ -129,34 +134,46 @@ def predict_signal(ticker: str, df: pd.DataFrame) -> dict:
     df_feat = add_enhanced_features(df)
     df_feat = df_feat.dropna().reset_index(drop=True)
     if len(df_feat) == 0:
-        return {"ticker": ticker, "signal": "HOLD", "confidence": 0.0, "reason": "Not enough data"}
+        return {
+            "ticker": ticker,
+            "signal": "HOLD",
+            "probabilities": {"BUY": 0.0, "HOLD": 1.0, "SELL": 0.0},
+            "reason": "Not enough data"
+        }
 
     X = df_feat[features].iloc[[-1]]
     X_s = scaler.transform(X)
     probs = model.predict_proba(X_s)[0]
-    idx = np.argmax(probs)
+
     signal_map = {0: "SELL", 1: "HOLD", 2: "BUY"}
+    idx = int(np.argmax(probs))  
     signal = signal_map[idx]
-    confidence = float(probs[idx])
+
+    probabilities = {
+        "BUY": float(probs[2]),
+        "HOLD": float(probs[1]),
+        "SELL": float(probs[0])
+    }
 
     return {
         "ticker": ticker,
         "signal": signal,
-        "confidence": round(confidence, 3),
-        "probabilities": {signal_map[i]: float(p) for i, p in enumerate(probs)},
-        "feature_values": X.iloc[0].to_dict()  
+        "probabilities": probabilities,   
+        "feature_values": X.iloc[0].to_dict()
     }
-
 
 def create_genai_explainer(features: list):
     feature_list_str = ", ".join(features)
     system_prompt = f"""
         You are a financial AI analyst assistant.
-        Given a model decision output (BUY, HOLD, or SELL), confidence score, and the most recent values of all features,
+        Given a model decision output (BUY, HOLD, or SELL), probability distribution over the three classes, and the most recent values of all features,
         explain the reasoning behind the recommendation in a short, professional, and data-driven style.
         Use the actual numerical values of features in your explanation where relevant.
         Format the answer as JSON:
-        {{"signal": "...", "confidence": ..., "explanation": "..."}}
+        {{
+          "explanation": "..."
+        }}
+        Return ONLY valid JSON.
         """
     return Agent(
         model=Groq(
@@ -167,8 +184,9 @@ def create_genai_explainer(features: list):
             max_tokens=1000,
         ),
         system_prompt=system_prompt,
-        debug_mode=True,
+        debug_mode=False,
     )
+
 
 def run_trading_agent(query: str, sql_result: list = None, ticker: str = None) -> dict:
     if not sql_result or not isinstance(sql_result, list) or len(sql_result) == 0:
@@ -178,22 +196,31 @@ def run_trading_agent(query: str, sql_result: list = None, ticker: str = None) -
         return {"status": "error", "message": "Ticker not provided or invalid."}
 
     df = pd.DataFrame(sql_result)
-
     decision = predict_signal(ticker, df)
 
     features = list(decision["feature_values"].keys())
     explainer = create_genai_explainer(features)
 
     expl_input = json.dumps({
-        "decision": decision,
+        "decision": decision["signal"],
+        "probabilities": decision["probabilities"],  
         "feature_values": decision["feature_values"]
-    })
+    }, default=str)
+
     explanation = explainer.run(expl_input)
 
     try:
         explanation_json = json.loads(explanation.content)
     except Exception:
-        explanation_json = {"explanation": explanation.content.strip()}
+        explanation_json = {"explanation": explanation.content.strip() if explanation else "No explanation generated."}
 
-    result = {**decision, **explanation_json}
+    result = {
+        "ticker": ticker.upper(),
+        "signal": decision["signal"],
+        "probabilities": decision["probabilities"],  
+        "explanation": explanation_json.get("explanation", "No explanation provided.")
+    }
+
+    
     return {"status": "success", "decision": result}
+

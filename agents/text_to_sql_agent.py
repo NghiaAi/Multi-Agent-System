@@ -152,7 +152,7 @@ agent = Agent(
         "- For any query asking 'how many days trading' or 'how many days' (e.g., 'How many trading days in 2024 did Boeing trade?', 'How many trading days in 2024 had Disney's closing price above $90?'), use COUNT(*) to count the number of records, not SELECT all data. Example: SELECT COUNT(*) AS trading_days FROM prices WHERE Ticker = 'BA' AND STRFTIME('%Y', Date) = '2024'",
         "- For cumulative returns queries (e.g., 'cumulative returns of UNH in 2024'), query daily closing prices for the specified ticker and year: SELECT Date, Close, Ticker FROM prices WHERE Ticker = 'UNH' AND STRFTIME('%Y', Date) = '2024' ORDER BY Date.",
         "- For dividend queries specifying a date (e.g., 'dividend per share of MSFT on May 17, 2023'), query the 'Dividends' column from the 'prices' table using the DATE() function to match the date: SELECT Dividends FROM prices WHERE Ticker = '[TICKER]' AND DATE(Date) = '[YYYY-MM-DD]'.",
-        "- For historical price queries (e.g., 'last 90 trading days of AAPL'), always select Date, Open, High, Low, Close, \"Adj Close\", Volume, Ticker.",
+        "- For historical price queries (e.g., 'last 120 trading days of AAPL'), always select Date, Open, High, Low, Close, \"Adj Close\", Volume, Ticker.",
         "- For statistical calculations, use SQLite-compatible functions: use STDEV() instead of STDDEV() for standard deviation.",
         "- When the user asks for a 'boxplot of market capitalization values grouped by sector' or 'boxplot market cap by sector' ALWAYS query individual company data (Not aggregates) from the 'companies' table: SELECT sector, market_cap FROM companies ORDER BY sector, market_cap DESC;",
         "- To call the 'run_sql_query' tool, ALWAYS respond with a JSON array of tool calls in this exact format: [{'id': 'call_id', 'type': 'function', 'function': {'name': 'run_sql_query', 'arguments': '{\"query\": \"YOUR SQL QUERY HERE\"}'}}]. Replace 'call_id' with a unique ID like 'call_123'.",
@@ -169,7 +169,7 @@ agent = Agent(
         "- After receiving the tool result, ALWAYS provide a final response in this format:\nSQL Query: [the SQL query you used]\nRaw Result: [the raw result with company names mapped]\nAnswer: [your formatted answer based on the result].",
         "- If the tool call fails or returns no data, return 'I don't know. No data available for [company or data type].'.",
     ],
-    debug_mode=True,
+    debug_mode=False,
     max_tool_calls=1,
     tool_call_strategy="auto",
 )
