@@ -1,0 +1,6 @@
+pytest test_agent/test_visualization_agent.py -v -s 
+pytest test_agent/test_text_to_sql_agent.py -v -s 
+pytest test_agent/test_rag_agent.py -v -s 
+pytest test_agent/test_orchestrator_agent.py -v -s 
+pytest test_agent/test_trading_agent.py -v -s 
+

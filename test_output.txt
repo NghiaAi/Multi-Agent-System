@@ -1,0 +1,25 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-9.0.2, pluggy-1.6.0 -- D:\Study\Other\Multi_Agent\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\Study\Other\Multi_Agent
+plugins: anyio-4.12.0, langsmith-0.4.56
+collecting ... collected 16 items
+
+test_agent/test_trading_agent.py::TestTradingAgent::test_buy_signal PASSED [  6%]
+test_agent/test_trading_agent.py::TestTradingAgent::test_sell_signal PASSED [ 12%]
+test_agent/test_trading_agent.py::TestTradingAgent::test_no_data_error PASSED [ 18%]
+test_agent/test_trading_agent.py::TestTradingAgent::test_no_ticker_error PASSED [ 25%]
+test_agent/test_trading_agent.py::TestTradingAgent::test_response_structure PASSED [ 31%]
+test_agent/test_trading_agent.py::TestTradingAgent::test_with_real_sql_data PASSED [ 37%]
+test_agent/test_trading_agent.py::TestTradingSmoke::test_module_importable PASSED [ 43%]
+test_agent/test_trading_agent.py::TestTradingSmoke::test_models_loaded PASSED [ 50%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_returns_image PASSED [ 56%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_image_is_rgb PASSED [ 62%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_line_chart PASSED [ 68%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_no_code_block_error PASSED [ 75%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_response_structure PASSED [ 81%]
+test_agent/test_visualization_agent.py::TestVisualizationAgent::test_with_real_sql_data PASSED [ 87%]
+test_agent/test_visualization_agent.py::TestVisualizationSmoke::test_module_importable PASSED [ 93%]
+test_agent/test_visualization_agent.py::TestVisualizationSmoke::test_company_mapping_exists PASSED [100%]
+
+============================= 16 passed in 4.47s ==============================

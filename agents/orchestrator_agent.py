@@ -166,7 +166,19 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
     )
     
 rag_agent, _ = load_rag_agent()
-def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
+def run_orchestrator(query: str, chat_history: list = [], execute_agents: bool = True) -> Dict[str, Any]:
+    """
+    Run the orchestrator to analyze query and optionally execute agents.
+    
+    Args:
+        query: The user's query
+        chat_history: List of previous chat interactions
+        execute_agents: If True (default), execute the delegated agents. 
+                       If False, only return routing JSON without executing agents.
+    
+    Returns:
+        Dict containing status, message, and data with agents, sub_queries, tickers, etc.
+    """
     orchestrator = create_orchestrator()
     input_json = json.dumps({"query": query, "chat_history": chat_history}, ensure_ascii=False)
     try:
@@ -190,6 +202,11 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
         
         agents = response_dict.get("data", {}).get("agents", [])
         sub_queries = response_dict.get("data", {}).get("sub_queries", {})
+        
+        # If execute_agents is False, return early with just the routing info
+        if not execute_agents:
+            logger.info("execute_agents=False, returning routing JSON only")
+            return response_dict
         
         if not agents:
             return response_dict
@@ -261,7 +278,6 @@ def run_orchestrator(query: str, chat_history: list = []) -> Dict[str, Any]:
             elif agent_name == "rag_agent":
                 logger.debug(f"Executing rag_agent with sub-query: {sub_query}")
                 try:
-                    # rag_agent, _ = load_rag_agent()
                     result = rag_agent.run(sub_query, stream=False)
                     time.sleep(2)
                     rag_result = getattr(result, "content", str(result)) if result else "No data retrieved from RAG."

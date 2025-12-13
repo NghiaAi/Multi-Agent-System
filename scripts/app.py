@@ -119,7 +119,7 @@ if query:
     chat_history = st.session_state.full_user_history[-5:]
 
     with st.spinner("Processing..."):
-        response = run_orchestrator(query, chat_history=chat_history)
+        response = run_orchestrator(query, chat_history=chat_history,execute_agents=True)
     st.session_state.messages.append({"role": "assistant", "response": response})
     
     with st.chat_message("assistant"):
