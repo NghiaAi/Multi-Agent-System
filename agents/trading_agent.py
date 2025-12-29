@@ -224,3 +224,4 @@ def run_trading_agent(query: str, sql_result: list = None, ticker: str = None) -
     
     return {"status": "success", "decision": result}
 
+

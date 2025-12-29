@@ -167,23 +167,10 @@ Input format: JSON string with "query" (current query) and "chat_history" (list 
     
 rag_agent, _ = load_rag_agent()
 def run_orchestrator(query: str, chat_history: list = [], execute_agents: bool = True) -> Dict[str, Any]:
-    """
-    Run the orchestrator to analyze query and optionally execute agents.
-    
-    Args:
-        query: The user's query
-        chat_history: List of previous chat interactions
-        execute_agents: If True (default), execute the delegated agents. 
-                       If False, only return routing JSON without executing agents.
-    
-    Returns:
-        Dict containing status, message, and data with agents, sub_queries, tickers, etc.
-    """
     orchestrator = create_orchestrator()
     input_json = json.dumps({"query": query, "chat_history": chat_history}, ensure_ascii=False)
     try:
         response = orchestrator.run(input_json)
-        # response_dict = json.loads(response.content) if hasattr(response, "content") else response
         raw_content = getattr(response, "content", response)
         if isinstance(raw_content, bytes):
             raw_content = raw_content.decode("utf-8")

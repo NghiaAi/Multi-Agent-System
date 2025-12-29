@@ -366,8 +366,6 @@ class TestSmoke:
 # ==================== INTEGRATION TEST (Full Execution) ====================
 
 class TestIntegration:
-    """Integration tests với execute_agents=True (chạy đầy đủ agents)"""
-    
     @pytest.mark.slow
     def test_full_text2sql_execution(self):
         result = run_with_retry("What is the closing price of AAPL?", execute_agents=True)
